@@ -35,9 +35,16 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--run-name", type=str, default=None, help="wandb run name")
     p.add_argument("--n-tokens", type=int, default=300_000_000)
-    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument("--batch-size", type=int, default=128)
     p.add_argument("--peak-lr", type=float, default=3e-4)
-    p.add_argument("--num-workers", type=int, default=2)
+    p.add_argument("--num-workers", type=int, default=4)
+    p.add_argument("--no-compile", action="store_true", help="disable torch.compile")
+    p.add_argument(
+        "--data-path",
+        type=str,
+        default=None,
+        help="path to a pretokenized .bin file (uint16). If unset, streams from HF.",
+    )
     p.add_argument("--ckpt-dir", type=str, default="checkpoints/run")
     p.add_argument("--no-wandb", action="store_true", help="disable wandb logging")
     p.add_argument(
@@ -93,7 +100,16 @@ def main():
     n_params = sum(p.numel() for p in model.parameters())
     print(f"model: {n_params / 1e6:.1f}M params")
 
-    dataset = FineWebEduStream(seq_len=cfg.n_ctx)
+    if not args.no_compile and device == "cuda":
+        print("compiling model with torch.compile (first step will be slow)...")
+        model = torch.compile(model)
+
+    if args.data_path:
+        from data.pretokenized import PretokenizedDataset
+        dataset = PretokenizedDataset(args.data_path, seq_len=cfg.n_ctx)
+    else:
+        dataset = FineWebEduStream(seq_len=cfg.n_ctx)
+
     loader = DataLoader(
         dataset,
         batch_size=args.batch_size,

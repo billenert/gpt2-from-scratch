@@ -188,11 +188,16 @@ class Trainer:
         self.model.train()
         return results
 
+    def _underlying_model(self) -> torch.nn.Module:
+        # torch.compile wraps the model; save/load the original so checkpoints
+        # are portable between compiled and uncompiled runs.
+        return getattr(self.model, "_orig_mod", self.model)
+
     def save_checkpoint(self, name: str | None = None):
         path = self.ckpt_dir / (f"{name}.pt" if name else f"step_{self.step}.pt")
         torch.save(
             {
-                "model": self.model.state_dict(),
+                "model": self._underlying_model().state_dict(),
                 "optimizer": self.optimizer.state_dict(),
                 "step": self.step,
                 "tokens_seen": self.tokens_seen,
@@ -202,7 +207,7 @@ class Trainer:
 
     def load_checkpoint(self, path: str | Path):
         ckpt = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(ckpt["model"])
+        self._underlying_model().load_state_dict(ckpt["model"])
         self.optimizer.load_state_dict(ckpt["optimizer"])
         self.step = ckpt["step"]
         self.tokens_seen = ckpt["tokens_seen"]
