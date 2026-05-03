@@ -27,3 +27,8 @@ env/
 # Editor
 .vscode/
 .idea/
+
+# Training artifacts
+checkpoints/
+wandb/
+data/*.bin
