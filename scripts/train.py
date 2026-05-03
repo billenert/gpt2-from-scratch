@@ -31,11 +31,26 @@ SAMPLE_PROMPTS = [
 ]
 
 
+# Architecture presets. Pick one with --model.
+MODEL_PRESETS = {
+    "tiny": Config(d_model=256, n_heads=8, d_head=32, d_mlp=1024, n_layers=6, n_ctx=512, d_vocab=50257),
+    "small": Config(d_model=768, n_heads=12, d_head=64, d_mlp=3072, n_layers=12, n_ctx=1024, d_vocab=50257),
+    "medium": Config(d_model=1024, n_heads=16, d_head=64, d_mlp=4096, n_layers=24, n_ctx=1024, d_vocab=50257),
+}
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--run-name", type=str, default=None, help="wandb run name")
-    p.add_argument("--n-tokens", type=int, default=300_000_000)
-    p.add_argument("--batch-size", type=int, default=128)
+    p.add_argument(
+        "--model",
+        type=str,
+        default="small",
+        choices=list(MODEL_PRESETS.keys()),
+        help="architecture preset (tiny=30M, small=GPT-2 small 124M, medium=GPT-2 medium 350M)",
+    )
+    p.add_argument("--n-tokens", type=int, default=2_500_000_000, help="total tokens to train on")
+    p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--peak-lr", type=float, default=3e-4)
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--no-compile", action="store_true", help="disable torch.compile")
@@ -87,15 +102,8 @@ def main():
     device, dtype = pick_device_and_dtype()
     print(f"device={device}  dtype={dtype}")
 
-    cfg = Config(
-        d_model=256,
-        n_heads=8,
-        d_head=32,
-        d_mlp=1024,
-        n_layers=6,
-        n_ctx=512,
-        d_vocab=50257,
-    )
+    cfg = MODEL_PRESETS[args.model]
+    print(f"model preset: {args.model}")
     model = Transformer(cfg).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"model: {n_params / 1e6:.1f}M params")
