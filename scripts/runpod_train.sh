@@ -33,9 +33,15 @@ mkdir -p "$DATA_DIR" "$CKPT_DIR"
 TOKENS_BILLIONS=$(( N_TOKENS / 1000000000 ))
 DATA_PATH="${DATA_DIR}/fineweb_edu_${TOKENS_BILLIONS}B.bin"
 
-# warn if auth missing (training won't crash, but you'll lose visibility / hit rate limits)
+# auth checks
 [ -z "${HF_TOKEN:-}" ] && echo "warning: HF_TOKEN not set — streaming may rate-limit"
-[ -z "${WANDB_API_KEY:-}" ] && echo "warning: WANDB_API_KEY not set — wandb will prompt or run offline"
+
+# wandb: if no key, skip entirely (avoids interactive prompt that hangs in tmux)
+WANDB_FLAG=""
+if [ -z "${WANDB_API_KEY:-}" ]; then
+    echo "warning: WANDB_API_KEY not set — passing --no-wandb (no logging to wandb cloud)"
+    WANDB_FLAG="--no-wandb"
+fi
 
 # expandable_segments helps fit larger batches by reducing fragmentation
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -61,4 +67,5 @@ python scripts/full_train.py \
     --num-workers "$NUM_WORKERS" \
     --data-path "$DATA_PATH" \
     --ckpt-dir "$CKPT_DIR" \
-    --run-name "$RUN_NAME"
+    --run-name "$RUN_NAME" \
+    $WANDB_FLAG
