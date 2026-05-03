@@ -26,7 +26,7 @@ def test_parameters_registered():
 def test_buffers_registered():
     m = RoPEAttention(make_cfg())
     names = {n for n, _ in m.named_buffers()}
-    assert {"rope_cos", "rope_sin", "causal_attention_mask"} <= names
+    assert {"rope_cos", "rope_sin"} <= names
 
 
 def test_biases_initialized_to_zero():
@@ -117,7 +117,7 @@ def test_moves_to_device():
     assert out.device.type == device
     # buffers should have moved too
     assert m.rope_cos.device.type == device
-    assert m.causal_attention_mask.device.type == device
+    assert m.rope_sin.device.type == device
 
 
 # --- determinism ---
