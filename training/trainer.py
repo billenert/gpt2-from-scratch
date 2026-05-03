@@ -30,6 +30,7 @@ class Trainer:
         eval_every: int = 2000,
         eval_batches: int = 50,
         ckpt_every: int = 2000,
+        ckpt_keep_last: int = 2,
         ckpt_dir: str | Path = "checkpoints",
         device: str = "cpu",
         dtype: torch.dtype = torch.float32,
@@ -55,6 +56,7 @@ class Trainer:
         self.eval_every = eval_every
         self.eval_batches = eval_batches
         self.ckpt_every = ckpt_every
+        self.ckpt_keep_last = ckpt_keep_last
         self.ckpt_dir = Path(ckpt_dir)
         self.ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -204,6 +206,17 @@ class Trainer:
             },
             path,
         )
+        # Auto-rotate: only step_*.pt files are rotated; named ones (e.g. final.pt) are preserved.
+        if name is None and self.ckpt_keep_last > 0:
+            self._rotate_checkpoints(keep=self.ckpt_keep_last)
+
+    def _rotate_checkpoints(self, keep: int):
+        paths = sorted(
+            self.ckpt_dir.glob("step_*.pt"),
+            key=lambda p: int(p.stem.split("_")[1]),
+        )
+        for p in paths[:-keep]:
+            p.unlink(missing_ok=True)
 
     def load_checkpoint(self, path: str | Path):
         ckpt = torch.load(path, map_location=self.device)
